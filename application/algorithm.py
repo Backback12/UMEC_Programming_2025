@@ -5,8 +5,11 @@ from collections import defaultdict, namedtuple # from demo
 
 
 
-FILE_PATH = './emergency_events.csv'
+# FILE_PATH = './emergency_events.csv'
+FILE_PATH = 'C:/Users/cepag/Documents/School/Competitions/UMEC_Programming_2025/emergency_events.csv'
 
+
+DEFAULT_SPEED = 1   # 1 unit/s
 
 # Unit  = namedtuple('Unit', ['station_id','stype','unit_id','home_x','home_y','speed'])
 
@@ -25,16 +28,102 @@ class Unit:
         self.x = self.home_x
         self.y = self.home_y
 
+        
+        self.is_busy = False    # checks if the unit is currently busy traversing
+        self.done_busy_time = 0 # shows at what time the unit will be done
+
+
+        # self.target_x = 0   # used for calculating final position after being busy
+        # self.target_y = 0   
+        self.target = None  # TARGET EMERGENCY
+
 class Emergency:
-    def __init__(self, x, y, etype, prio):
+    def __init__(self, x, y, etype, prio, expire_time):
         self.x = x
         self.y = y
         self.etype = etype
         self.prio = prio
+        self.expire_time = expire_time
+        self.is_active = True
+
+
+
 
 def import_data(file_path):
     data = pd.read_csv(file_path)   # import data
     data = data.sort_values(by=['t'])   # sort by time
+    return data
+
+
+
+def testing():
+    # import data
+    data = import_data(FILE_PATH)
+
+    # INITIALIZE STATIONS
+    stations = build_initial_stations()
+    # INITIALIZE UNITS
+    units = create_units_from_stations(stations, DEFAULT_SPEED)
+
+
+    emergency_stack = []
+
+    # for time tick in emergency data:
+    for index, row in data.iterrows():
+        
+        
+        # ------------------------------------------------------------
+        # NEW EMERGENCY
+        # ------------------------------------------------------------
+        # NEW EMERGENCY. basic Greedy algo
+        # find closest unit to emergency
+        curr_time = row['t']
+
+        emergency = Emergency(
+                        x=row['x'], 
+                        y=row['y'], 
+                        etype=row['etype'], 
+                        prio=row['priority_s']
+                        expire_time=curr_time + row['priority_s']
+                    )
+
+        # Find closest applicable unit to emergency
+
+
+        # SET UNIT TO GO THERE
+        # unit.is_busy = True
+        # unit.done_busy_time = curr_time + get_time_to_emergency()
+        
+
+
+        # ------------------------------------------------------------
+        # update all other units
+        # ------------------------------------------------------------
+
+        # for every unit
+        #   if unit is currently moving (unit.is_busy = True) update its position for displaying on output file
+
+        # for every unit
+        #   if unit.done_busy_time < curr_time:
+        #       Unit is at target, is free again! 
+        #       unit.x = unit.target_x
+        #       unit.y = unit.target_y
+        #
+        #       unit.target.is_active = False   # set emergency to false
+        #       calculate remaining time on target (emergency), add points
+
+
+        # ------------------------------------------------------------
+        # update all emergencies on stack
+        # ------------------------------------------------------------
+        
+        # for every emergency (on emergency stack)
+        #   if curr_time > emergency.expire_time:
+        #       emergency expired. Minus two points
+
+
+
+testing()
 
 
 
