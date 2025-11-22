@@ -34,14 +34,13 @@ def load_emergencies_from_csv(path):
             for row in reader:
                 if len(row) < 4:
                     continue
-
                 try:
                     t = float(row[0])      
                 except ValueError:
                     continue
                 x = float(row[1])
                 y = float(row[2])
-                e_type = row[3].strip().lower()  # fire / police / medical
+                e_type = row[3].strip().lower()
 
                 desc = f"{e_type.capitalize()} emergency"
 
@@ -85,7 +84,7 @@ class EmergencyPlayer:
 
     def start(self):
         if not self.emergencies:
-            self.log("No emergencies loaded. Nothing to simulate.\n")
+            self.log("No emergencies are happening\n")
             return
 
         # reset and start
