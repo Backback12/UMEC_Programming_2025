@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow.keras import layers, models
 import pandas as pd
 from collections import defaultdict, namedtuple # from demo
+import math
 
 
 
@@ -45,6 +46,17 @@ class Emergency:
         self.prio = prio
         self.expire_time = expire_time
         self.is_active = True
+        
+        
+        if self.etype == 'fire':
+            self.applicable_units = ['fire']  ########################################################################### UPDATE
+        elif self.etype == 'police':
+            self.applicable_units = ['police']  ########################################################################### UPDATE
+        elif self.etype == 'medical':
+            self.applicable_units = ['medical']  ########################################################################### UPDATE
+        else:
+            self.applicable_units = []
+            print("YOOOOO WHAT THE HELL")
 
 
 
@@ -57,6 +69,8 @@ def import_data(file_path):
 
 
 def testing():
+    points = 0
+
     # import data
     data = import_data(FILE_PATH)
 
@@ -64,9 +78,12 @@ def testing():
     stations = build_initial_stations()
     # INITIALIZE UNITS
     units = create_units_from_stations(stations, DEFAULT_SPEED)
-
-
     emergency_stack = []
+
+
+
+
+    last_time = 0
 
     # for time tick in emergency data:
     for index, row in data.iterrows():
@@ -79,20 +96,43 @@ def testing():
         # find closest unit to emergency
         curr_time = row['t']
 
-        emergency = Emergency(
-                        x=row['x'], 
-                        y=row['y'], 
-                        etype=row['etype'], 
-                        prio=row['priority_s']
-                        expire_time=curr_time + row['priority_s']
-                    )
+        emergency = Emergency(x=row['x'], 
+                            y=row['y'], 
+                            etype=row['etype'], 
+                            prio=row['priority_s']
+                            expire_time=curr_time + row['priority_s'])
 
+        emergency_stack.append(emergency)
+        
         # Find closest applicable unit to emergency
+        best_unit = None
+        lowest_cost = 999999999999999999
+        for unit in units:
+            
+            if unit.is_busy:    # unit is currently busy going to another emergency.    - COULD BE OPTIMIZED INCASE UNIT IS STILL CLOSEST?? ***********************************************************
+                continue
 
 
-        # SET UNIT TO GO THERE
-        # unit.is_busy = True
-        # unit.done_busy_time = curr_time + get_time_to_emergency()
+            if unit.stype in emergency.applicable_units:    # unit is applicable to go
+                # compare each applicable unit and send the lowest cost
+                curr_cost = get_time_to_emergency(unit, emergency)
+                
+                if curr_cost > emergency.expire_time:
+                    # UNIT IS COOKED - It cannot make it to the emergency in time
+                    continue
+
+                if curr_cost < lowest_cost:
+                    # unit CAN make it to the emergency in time
+                    lowest_cost = curr_cost
+                    best_unit = unit
+
+
+        # SET BEST UNIT TO GO THERE (if it exists, otherwise event is cooked rip those people. Let it expire)
+        if best_unit:
+            best_unit.is_busy = True
+            best_unit.done_busy_time = curr_time + get_time_to_emergency()
+            best_unit.target = emergency
+
         
 
 
@@ -111,6 +151,23 @@ def testing():
         #
         #       unit.target.is_active = False   # set emergency to false
         #       calculate remaining time on target (emergency), add points
+        for unit in units:
+
+            if unit.is_busy:    # if unit is moving
+
+                if unit.done_busy_time < curr_time:
+                    # unit is at target, should be free again to go to next emergency!
+                    unit.x = unit.target.x
+                    unit.y = unit.target.y
+                    unit.is_busy = False
+                    unit.done_busy_time = 0
+
+                    # completed event
+                    unit.target.is_active = False # set emergency to non-active
+                    points += 2 # update points
+                else:
+                    # unit is still moving towards target. Calculate new current distance
+
 
 
         # ------------------------------------------------------------
@@ -119,17 +176,15 @@ def testing():
         
         # for every emergency (on emergency stack)
         #   if curr_time > emergency.expire_time:
-        #       emergency expired. Minus two points
+        #       emergency expired. Minus two points    
 
-
+        last_time = curr_time
 
 testing()
 
 
-
-
 def get_time_to_emergency(unit, emergency):
-    pass
+    return  math.sqrt( (emergency.y - unit.y)^2 + (emergency.x - unit.x)^2) / unit.speed   # v = d / t -> t = d / v
 
 
 def build_initial_stations():
