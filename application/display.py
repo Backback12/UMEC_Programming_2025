@@ -132,12 +132,12 @@ def build_ui(root):
 
     # Adding Stations 
     stations = [
-        (20, 20, "#000000"),  # Fire Station 1
-        (180, 20, "#000000"),  # Fire Station 2
+        (20, 20, "#FF0000"),  # Fire Station 1
+        (180, 20, "#FF0000"),  # Fire Station 2
         (50, 100, "#000000"),  # Police Station 1
         (150, 120, "#000000"),  # Police Station 2
-        (100, 30, "#000000"),  # Medical Station 1
-        (100, 170, "#000000"),  # Medical Station 2
+        (100, 30, "#0000FF"),  # Medical Station 1
+        (100, 170, "#0000FF"),  # Medical Station 2
     ]
 
     for x, y, color in stations:
