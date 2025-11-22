@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow.keras import layers, models
 import pandas as pd
 from collections import defaultdict, namedtuple # from demo
+import math
 
 
 
@@ -46,9 +47,6 @@ class Emergency:
         self.expire_time = expire_time
         self.is_active = True
 
-
-
-
 def import_data(file_path):
     data = pd.read_csv(file_path)   # import data
     data = data.sort_values(by=['t'])   # sort by time
@@ -87,8 +85,7 @@ def testing():
                         expire_time=curr_time + row['priority_s']
                     )
 
-        # Find closest applicable unit to emergency
-
+        # Find closest applicable unit to emergency  
 
         # SET UNIT TO GO THERE
         # unit.is_busy = True
@@ -119,17 +116,15 @@ def testing():
         
         # for every emergency (on emergency stack)
         #   if curr_time > emergency.expire_time:
-        #       emergency expired. Minus two points
+        #       emergency expired. Minus two points    
 
 
 
 testing()
 
 
-
-
 def get_time_to_emergency(unit, emergency):
-    pass
+    return  math.sqrt( (emergency.y - unit.y)^2 + (emergency.x - unit.x)^2) / unit.speed   # v = d / t -> t = d / v
 
 
 def build_initial_stations():
