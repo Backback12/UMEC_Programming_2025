@@ -9,7 +9,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 
 
 # FILE_PATH = './emergency_events.csv'
-FILE_PATH = '/home/keeper/School/umec/UMEC_Programming_2025/emergency_events.csv'
+FILE_PATH = 'emergency_events.csv'
 
 
 # fig, ax = plt.subplots(figsize=(6, 6))
