@@ -1,24 +1,19 @@
-import tensorflow as tf
-from tensorflow.keras import layers, models
 import pandas as pd
 from collections import defaultdict, namedtuple # from demo
 import math
 
 
 
-# FILE_PATH = './emergency_events.csv'
-FILE_PATH = 'C:/Users/cepag/Documents/School/Competitions/UMEC_Programming_2025/emergency_events.csv'
-
+FILE_PATH = './emergency_events.csv'
+# FILE_PATH = 'C:/Users/cepag/Documents/School/Competitions/UMEC_Programming_2025/emergency_events.csv'
+OUTPUT_PATH = './output.csv'
 
 DEFAULT_SPEED = 1   # 1 unit/s
-VERBOSE = True
-
-# Unit  = namedtuple('Unit', ['station_id','stype','unit_id','home_x','home_y','speed'])
+VERBOSE = False
 
 
 
-# Assumptions
-# Not going back to station
+
 class Unit:
     def __init__(self, station_id, stype, unit_id, home_x, home_y, speed):
         self.station_id = station_id
@@ -36,8 +31,6 @@ class Unit:
         self.done_busy_time = 0 # shows at what time the unit will be done
 
 
-        # self.target_x = 0   # used for calculating final position after being busy
-        # self.target_y = 0   
         self.target = None  # TARGET EMERGENCY
 
 
@@ -76,8 +69,34 @@ def import_data(file_path):
     return data
 
 
+def get_time_to_emergency(unit, emergency):
+    return  math.sqrt( math.pow(emergency.y - unit.y, 2) + math.pow(emergency.x - unit.x, 2)) / unit.speed   # v = d / t -> t = d / v
 
-def testing():
+
+def build_initial_stations():
+    stations = []
+    #(id, type, x, y, num_units)
+    stations.append(('F1','fire', 20,20, 2))
+    stations.append(('F2','fire',180,20, 2))
+    stations.append(('P1','police', 50,100, 2))
+    stations.append(('P2','police',150,120, 2))
+    stations.append(('H1','medical', 100,30, 2))
+    stations.append(('H2','medical', 100,170,2))
+    return stations
+
+def create_units_from_stations(stations, default_speed=1.0):
+    units = []
+    uid = 0
+    for sid, stype, sx, sy, num in stations:
+        for k in range(num):
+            # units.append(Unit(sid, stype, uid, sx, sy, default_speed))
+            
+            units.append(Unit(sid, stype, uid, sx, sy, default_speed))
+            uid += 1
+    return units
+
+
+def main():
     points = 0
 
     # import data
@@ -119,26 +138,15 @@ def testing():
         # ------------------------------------------------------------
         # update all other units
         # ------------------------------------------------------------
-
-        # for every unit
-        #   if unit is currently moving (unit.is_busy = True) update its position for displaying on output file
-
-        # for every unit
-        #   if unit.done_busy_time < curr_time:
-        #       Unit is at target, is free again! 
-        #       unit.x = unit.target_x
-        #       unit.y = unit.target_y
-        #
-        #       unit.target.is_active = False   # set emergency to false
-        #       calculate remaining time on target (emergency), add points
+        
         for unit in units:
 
             if unit.is_busy:    # if unit is moving
 
-                print(f"Unit done busy time = {unit.done_busy_time}")
+                if VERBOSE: print(f"Unit done busy time = {unit.done_busy_time}")
 
                 if unit.done_busy_time < curr_time:
-                    print(f"AAAAA - UNIT AT TARGET! {unit.name}")
+                    if VERBOSE: print(f"AAAAA - UNIT AT TARGET! {unit.name}")
                     # unit is at target, should be free again to go to next emergency!
                     unit.x = unit.target.x
                     unit.y = unit.target.y
@@ -158,19 +166,15 @@ def testing():
                     # print(f"Reminaing time={remaining_time}")
                     points += 1 * int(remaining_time / 60)      # 1 point for every minute remaining
                 else:
-                    print("BBBB")
+                    if VERBOSE: print("BBBB")
                     # unit is still moving towards target. Calculate new current distance
                     ratio = (curr_time-last_time) / (get_time_to_emergency(unit, unit.target))
-                    print(f"curr={curr_time} last={last_time} ratio={ratio} gtoe={get_time_to_emergency(unit, unit.target)}")
+                    if VERBOSE: print(f"curr={curr_time} last={last_time} ratio={ratio} gtoe={get_time_to_emergency(unit, unit.target)}")
                     unit.x = unit.x * ratio 
                     unit.y = unit.y * ratio
             
 
             # save unit positions to output data
-            # data[unit.name + "-x"] = unit.x
-            # data[unit.name + "-y"] = unit.y
-            # data[unit.name + "-x"] = curr_time
-            # data[unit.name + "-y"] = curr_time
             data.at[index, unit.name + "-x"] = unit.x
             data.at[index, unit.name + "-y"] = unit.y
             
@@ -180,9 +184,6 @@ def testing():
         # update all emergencies on stack
         # ------------------------------------------------------------
         
-        # for every emergency (on emergency stack)
-        #   if curr_time > emergency.expire_time:
-        #       emergency expired. Minus two points 
         things_to_pop = []   
         for emerg in emergency_stack:
             if emerg.expire_time < curr_time:
@@ -194,7 +195,7 @@ def testing():
                 things_to_pop.append(emerg)
                 data.at[index, 'done'] += str(emerg.id) + " "
 
-        for emr in things_to_pop:
+        for emr in things_to_pop:   # remove emergencies after iterating
             emergency_stack.remove(emr)
 
         # ------------------------------------------------------------
@@ -213,11 +214,10 @@ def testing():
 
         emergency_stack.append(emergency)
         if VERBOSE: print(f"New emergency! At {curr_time}") 
-
         
         # Find closest applicable unit to emergency
         best_unit = None
-        lowest_cost = 999999999999999999
+        lowest_cost = float('inf')
         for unit in units:
             
             if unit.is_busy:    # unit is currently busy going to another emergency.    - COULD BE OPTIMIZED INCASE UNIT IS STILL CLOSEST?? ***********************************************************
@@ -229,59 +229,33 @@ def testing():
                 curr_cost = get_time_to_emergency(unit, emergency)
                 
                 if curr_cost > emergency.expire_time:
-                    # UNIT IS COOKED - It cannot make it to the emergency in time
+                    # Unit cannot make it to the emergency in time
                     continue
 
                 if curr_cost < lowest_cost:
-                    # unit CAN make it to the emergency in time
+                    # unit can make it to the emergency in time
                     lowest_cost = curr_cost
                     best_unit = unit
 
 
-        # SET BEST UNIT TO GO THERE (if it exists, otherwise event is cooked rip those people. Let it expire
         if best_unit:
+            # set best unit to head to emergency
             best_unit.is_busy = True
             best_unit.done_busy_time = curr_time + get_time_to_emergency(best_unit, emergency)
             best_unit.target = emergency
 
+
+
+        # loop updates
         data.at[index, 'points'] = points
         last_time = curr_time
 
-    return data
+    # return data
+
+    print(f"Simulation complete! Saved position log to {OUTPUT_PATH}")
+    data.to_csv(OUTPUT_PATH)
 
 
-def get_time_to_emergency(unit, emergency):
-    return  math.sqrt( math.pow(emergency.y - unit.y, 2) + math.pow(emergency.x - unit.x, 2)) / unit.speed   # v = d / t -> t = d / v
 
-
-def build_initial_stations():
-    stations = []
-    #(id, type, x, y, num_units)
-    stations.append(('F1','fire', 20,20, 2))
-    stations.append(('F2','fire',180,20, 2))
-    stations.append(('P1','police', 50,100, 2))
-    stations.append(('P2','police',150,120, 2))
-    stations.append(('H1','medical', 100,30, 2))
-    stations.append(('H2','medical', 100,170,2))
-    return stations
-
-def create_units_from_stations(stations, default_speed=1.0):
-    units = []
-    uid = 0
-    for sid, stype, sx, sy, num in stations:
-        for k in range(num):
-            # units.append(Unit(sid, stype, uid, sx, sy, default_speed))
-            
-            units.append(Unit(sid, stype, uid, sx, sy, default_speed))
-            uid += 1
-    return units
-
-def main():
-    stations = build_initial_stations()
-    units = create_units_from_stations(stations, default_speed=1.0)  # 1 unit/sec
-
-
-data = testing()
-
-# output
-data.to_csv('output.csv')
+if __name__ == "__main__":
+    main()
