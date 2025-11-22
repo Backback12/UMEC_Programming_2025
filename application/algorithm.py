@@ -11,6 +11,7 @@ FILE_PATH = 'C:/Users/cepag/Documents/School/Competitions/UMEC_Programming_2025/
 
 
 DEFAULT_SPEED = 1   # 1 unit/s
+VERBOSE = True
 
 # Unit  = namedtuple('Unit', ['station_id','stype','unit_id','home_x','home_y','speed'])
 
@@ -81,6 +82,10 @@ def testing():
     # import data
     data = import_data(FILE_PATH)
 
+
+    # TEMPORARY ONLY USE FIRST 5 STEPS
+    # data = data.head(2)
+
     # INITIALIZE STATIONS
     stations = build_initial_stations()
     # INITIALIZE UNITS
@@ -94,7 +99,7 @@ def testing():
         
         data[unit.name + "-x"] = None    # create unit x position col
         data[unit.name + "-y"] = None    # create unit y position col
-
+    data['points'] = None
 
 
 
@@ -103,14 +108,87 @@ def testing():
 
     # for time tick in emergency data:
     for index, row in data.iterrows():
+        curr_time = row['t']
+
+        if VERBOSE: print(f"\nNEW TIME TICK = {curr_time}")
         
+
+
+        # ------------------------------------------------------------
+        # update all other units
+        # ------------------------------------------------------------
+
+        # for every unit
+        #   if unit is currently moving (unit.is_busy = True) update its position for displaying on output file
+
+        # for every unit
+        #   if unit.done_busy_time < curr_time:
+        #       Unit is at target, is free again! 
+        #       unit.x = unit.target_x
+        #       unit.y = unit.target_y
+        #
+        #       unit.target.is_active = False   # set emergency to false
+        #       calculate remaining time on target (emergency), add points
+        for unit in units:
+
+            if unit.is_busy:    # if unit is moving
+
+                print(f"Unit done busy time = {unit.done_busy_time}")
+
+                if unit.done_busy_time < curr_time:
+                    print(f"AAAAA - UNIT AT TARGET! {unit.name}")
+                    # unit is at target, should be free again to go to next emergency!
+                    unit.x = unit.target.x
+                    unit.y = unit.target.y
+                    unit.is_busy = False
+                    unit.done_busy_time = 0
+
+                    # completed event
+                    unit.target.is_active = False # set emergency to non-active
+                    
+                    remaining_time = curr_time - unit.target.expire_time    # calculate points
+                    # print(f"Reminaing time={remaining_time}")
+                    points += 1 * int(remaining_time / 60)      # 1 point for every minute remaining
+                else:
+                    print("BBBB")
+                    # unit is still moving towards target. Calculate new current distance
+                    ratio = (curr_time-last_time) / (get_time_to_emergency(unit, unit.target))
+                    print(f"curr={curr_time} last={last_time} ratio={ratio} gtoe={get_time_to_emergency(unit, unit.target)}")
+                    unit.x = unit.x * ratio 
+                    unit.y = unit.y * ratio
+            
+
+            # save unit positions to output data
+            # data[unit.name + "-x"] = unit.x
+            # data[unit.name + "-y"] = unit.y
+            # data[unit.name + "-x"] = curr_time
+            # data[unit.name + "-y"] = curr_time
+            data.at[index, unit.name + "-x"] = unit.x
+            data.at[index, unit.name + "-y"] = unit.y
+            
+                    
+
+        # ------------------------------------------------------------
+        # update all emergencies on stack
+        # ------------------------------------------------------------
         
+        # for every emergency (on emergency stack)
+        #   if curr_time > emergency.expire_time:
+        #       emergency expired. Minus two points    
+        for emerg in emergency_stack:
+            if emerg.expire_time < curr_time:
+                # emergency has expired. RIP.
+                emerg.is_active = False
+                points -= 2
+                emergency_stack.pop(0)  # pop first in stack
+
+
         # ------------------------------------------------------------
         # NEW EMERGENCY
         # ------------------------------------------------------------
         # NEW EMERGENCY. basic Greedy algo
         # find closest unit to emergency
-        curr_time = row['t']
+        
 
         emergency = Emergency(x=row['x'], 
                             y=row['y'], 
@@ -119,6 +197,8 @@ def testing():
                             expire_time=curr_time + row['priority_s'])
 
         emergency_stack.append(emergency)
+        if VERBOSE: print(f"New emergency! At {curr_time}") 
+
         
         # Find closest applicable unit to emergency
         best_unit = None
@@ -149,71 +229,10 @@ def testing():
             best_unit.done_busy_time = curr_time + get_time_to_emergency(best_unit, emergency)
             best_unit.target = emergency
 
-        
-
-
-        # ------------------------------------------------------------
-        # update all other units
-        # ------------------------------------------------------------
-
-        # for every unit
-        #   if unit is currently moving (unit.is_busy = True) update its position for displaying on output file
-
-        # for every unit
-        #   if unit.done_busy_time < curr_time:
-        #       Unit is at target, is free again! 
-        #       unit.x = unit.target_x
-        #       unit.y = unit.target_y
-        #
-        #       unit.target.is_active = False   # set emergency to false
-        #       calculate remaining time on target (emergency), add points
-        for unit in units:
-
-            if unit.is_busy:    # if unit is moving
-
-                if unit.done_busy_time < curr_time:
-                    # unit is at target, should be free again to go to next emergency!
-                    unit.x = unit.target.x
-                    unit.y = unit.target.y
-                    unit.is_busy = False
-                    unit.done_busy_time = 0
-
-                    # completed event
-                    unit.target.is_active = False # set emergency to non-active
-                    
-                    remaining_time = unit.target.expire_time - curr_time    # calculate points
-                    points += 1 * int(remaining_time / 60)      # 1 point for every minute remaining
-                else:
-                    # unit is still moving towards target. Calculate new current distance
-                    ratio = (curr_time-last_time) / (get_time_to_emergency(unit, unit.target))
-                    unit.x = unit.x * ratio 
-                    unit.y = unit.y * ratio
-            
-
-            # save unit positions to output data
-            data[unit.name + "-x"] = unit.x
-            data[unit.name + "-y"] = unit.y
-            
-            
-                    
-
-        # ------------------------------------------------------------
-        # update all emergencies on stack
-        # ------------------------------------------------------------
-        
-        # for every emergency (on emergency stack)
-        #   if curr_time > emergency.expire_time:
-        #       emergency expired. Minus two points    
-        for emerg in emergency_stack:
-            if emerg.expire_time < curr_time:
-                # emergency has expired. RIP.
-                emerg.is_active = False
-                points -= 2
-                emergency_stack.pop(0)  # pop first in stack
-
+        data.at[index, 'points'] = points
         last_time = curr_time
 
-
+    return data
 
 
 def get_time_to_emergency(unit, emergency):
@@ -247,4 +266,4 @@ def main():
     units = create_units_from_stations(stations, default_speed=1.0)  # 1 unit/sec
 
 
-testing()
+data = testing()
