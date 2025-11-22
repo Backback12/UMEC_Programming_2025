@@ -47,7 +47,8 @@ class Unit:
         
 
 class Emergency:
-    def __init__(self, x, y, etype, prio, expire_time):
+    def __init__(self, id, x, y, etype, prio, expire_time):
+        self.id = id
         self.x = x
         self.y = y
         self.etype = etype
@@ -100,7 +101,7 @@ def testing():
         data[unit.name + "-x"] = None    # create unit x position col
         data[unit.name + "-y"] = None    # create unit y position col
     data['points'] = None
-    data['done'] = None
+    data['done'] = ''
 
 
 
@@ -148,9 +149,9 @@ def testing():
                     unit.target.is_active = False # set emergency to non-active
                     # index = emergency_stack.index(unit.target)
                     # emergency_stack.pop(index) # pop from list
+                    data.at[index, 'done'] += str(unit.target.id) + " "
                     if unit.target in emergency_stack:
                         emergency_stack.remove(unit.target)
-                    
 
                     
                     remaining_time = curr_time - unit.target.expire_time    # calculate points
@@ -191,6 +192,7 @@ def testing():
                 # index = emergency_stack.index(emerg)
                 # emergency_stack.pop(0)  # pop first in stack
                 things_to_pop.append(emerg)
+                data.at[index, 'done'] += str(emerg.id) + " "
 
         for emr in things_to_pop:
             emergency_stack.remove(emr)
@@ -202,7 +204,8 @@ def testing():
         # find closest unit to emergency
         
 
-        emergency = Emergency(x=row['x'], 
+        emergency = Emergency(id=row['id'],
+                            x=row['x'], 
                             y=row['y'], 
                             etype=row['etype'], 
                             prio=row['priority_s'],
