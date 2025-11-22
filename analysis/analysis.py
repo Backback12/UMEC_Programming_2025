@@ -5,8 +5,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 
 
-# FILE_PATH = './emergency_events.csv'
-FILE_PATH = 'C:/Users/cepag/Documents/School/Competitions/UMEC_Programming_2025/analysis/emergency_events.csv'
+FILE_PATH = './emergency_events.csv'
 
 
 
@@ -18,7 +17,6 @@ def plot2d():
     fig, ax = plt.subplots(figsize=(6, 6))
 
     data = pd.read_csv(FILE_PATH)   # import data
-    # data = data.sort_values(by=['t'])   # sort by time
 
     for index, row in data.iterrows():
         etype = row['etype']
@@ -47,7 +45,7 @@ def plot2d():
 
 def plot3d(ttype):
     data = pd.read_csv(FILE_PATH)   # import data
-    sigma = 10
+    sigma = 10  # gauss
 
     x = np.linspace(0, 200, 200)
     y = np.linspace(0, 200, 200)

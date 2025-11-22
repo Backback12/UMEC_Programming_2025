@@ -1,11 +1,9 @@
 import pandas as pd
-from collections import defaultdict, namedtuple # from demo
 import math
 
 
 
 FILE_PATH = './emergency_events.csv'
-# FILE_PATH = 'C:/Users/cepag/Documents/School/Competitions/UMEC_Programming_2025/emergency_events.csv'
 OUTPUT_PATH = './output.csv'
 
 DEFAULT_SPEED = 1   # 1 unit/s
@@ -58,7 +56,6 @@ class Emergency:
             self.applicable_units = ['medical', 'fire']
         else:
             self.applicable_units = []
-            print("YOOOOO WHAT THE HELL")
 
 
 
@@ -101,10 +98,6 @@ def main():
 
     # import data
     data = import_data(FILE_PATH)
-
-
-    # TEMPORARY ONLY USE FIRST 5 STEPS
-    # data = data.head(2)
 
     # INITIALIZE STATIONS
     stations = build_initial_stations()
@@ -155,15 +148,12 @@ def main():
 
                     # completed event
                     unit.target.is_active = False # set emergency to non-active
-                    # index = emergency_stack.index(unit.target)
-                    # emergency_stack.pop(index) # pop from list
                     data.at[index, 'done'] += str(unit.target.id) + " "
                     if unit.target in emergency_stack:
                         emergency_stack.remove(unit.target)
 
                     
                     remaining_time = curr_time - unit.target.expire_time    # calculate points
-                    # print(f"Reminaing time={remaining_time}")
                     points += 1 * int(remaining_time / 60)      # 1 point for every minute remaining
                 else:
                     if VERBOSE: print("BBBB")
