@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow.keras import layers, models
 import pandas as pd
 from collections import defaultdict, namedtuple # from demo
+import math
 
 
 
@@ -175,17 +176,15 @@ def testing():
         
         # for every emergency (on emergency stack)
         #   if curr_time > emergency.expire_time:
-        #       emergency expired. Minus two points
+        #       emergency expired. Minus two points    
 
         last_time = curr_time
 
 testing()
 
 
-
-
 def get_time_to_emergency(unit, emergency):
-    pass
+    return  math.sqrt( (emergency.y - unit.y)^2 + (emergency.x - unit.x)^2) / unit.speed   # v = d / t -> t = d / v
 
 
 def build_initial_stations():
