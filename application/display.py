@@ -145,24 +145,10 @@ def build_ui(root):
     for x, y, color in stations:
         pg.add_pixel(x, y, color)
 
-    # Controls
-    tk.Label(controls, text="Add pixel").pack()
-    add_x = tk.Entry(controls, width=6); add_x.insert(0, "10")
-    add_y = tk.Entry(controls, width=6); add_y.insert(0, "10")
-    add_color = tk.Entry(controls, width=8); add_color.insert(0, "#ff0000")
-    add_x.pack(pady=2); add_y.pack(pady=2); add_color.pack(pady=2)
 
-    def on_add():
-        try:
-            x = int(add_x.get()); y = int(add_y.get()); c = add_color.get()
-            pid = pg.add_pixel(x, y, c)
-            refresh_list()
-        except Exception:
-            pass
-    tk.Button(controls, text="Add pixel", command=on_add).pack(pady=4)
-
-    tk.Label(controls, text="Pixels (id: x,y)").pack(pady=(10,0))
-    listbox = tk.Listbox(controls, width=18, height=10)
+    ## ADD PIXEL GOES HERE
+    tk.Label(controls, text="Emergencies").pack(padx=75,pady=10)
+    listbox = tk.Listbox(controls, width=50, height=10)
     listbox.pack()
 
     def refresh_list():
@@ -170,42 +156,6 @@ def build_ui(root):
         for pid, p in sorted(pg.pixels.items()):
             listbox.insert(tk.END, f"{pid}: {int(round(p['x']))},{int(round(p['y']))}")
     refresh_list()
-
-    # Move controls
-    tk.Label(controls, text="Move selected").pack(pady=(10,0))
-    tx_e = tk.Entry(controls, width=6); tx_e.insert(0, "180")
-    ty_e = tk.Entry(controls, width=6); ty_e.insert(0, "180")
-    steps_e = tk.Entry(controls, width=6); steps_e.insert(0, "80")
-    tx_e.pack(pady=2); ty_e.pack(pady=2); steps_e.pack(pady=2)
-
-    def on_move():
-        sel = listbox.curselection()
-        if not sel:
-            return
-        idx = sel[0]
-        item = listbox.get(idx)
-        pid = int(item.split(":")[0])
-        try:
-            tx = int(tx_e.get()); ty = int(ty_e.get()); steps = int(steps_e.get())
-            pg.move_pixel(pid, tx, ty, steps=steps)
-        except Exception:
-            pass
-    tk.Button(controls, text="Move", command=on_move).pack(pady=4)
-
-    def on_remove():
-        sel = listbox.curselection()
-        if not sel:
-            return
-        idx = sel[0]
-        pid = int(listbox.get(idx).split(":")[0])
-        pg.remove_pixel(pid)
-        refresh_list()
-    tk.Button(controls, text="Remove selected", command=on_remove).pack(pady=4)
-
-    def on_clear():
-        pg.clear_all()
-        refresh_list()
-    tk.Button(controls, text="Clear all", command=on_clear).pack(pady=6)
 
     # update list periodically (to show moving coords)
     def periodic_refresh():
@@ -220,3 +170,37 @@ if __name__ == "__main__":
     build_ui(root)
     root.geometry("900x640")
     root.mainloop()
+
+
+
+#MAYBE USEFUL LATER
+## ADD PIXEL
+# tk.Label(controls, text="Add pixel").pack()
+#     add_x = tk.Entry(controls, width=6); add_x.insert(0, "10")
+#     add_y = tk.Entry(controls, width=6); add_y.insert(0, "10")
+#     add_color = tk.Entry(controls, width=8); add_color.insert(0, "#ff0000")
+#     add_x.pack(pady=2); add_y.pack(pady=2); add_color.pack(pady=2)
+
+#     def on_add():
+#         try:
+#             x = int(add_x.get()); y = int(add_y.get()); c = add_color.get()
+#             pid = pg.add_pixel(x, y, c)
+#             refresh_list()
+#         except Exception:
+#             pass
+#     tk.Button(controls, text="Add pixel", command=on_add).pack(pady=4)
+
+# def on_remove():
+#         sel = listbox.curselection()
+#         if not sel:
+#             return
+#         idx = sel[0]
+#         pid = int(listbox.get(idx).split(":")[0])
+#         pg.remove_pixel(pid)
+#         refresh_list()
+#     tk.Button(controls, text="Remove selected", command=on_remove).pack(pady=4)
+
+# def on_clear():
+#     pg.clear_all()
+#     refresh_list()
+# tk.Button(controls, text="Clear all", command=on_clear).pack(pady=6)
