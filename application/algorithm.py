@@ -145,6 +145,12 @@ def testing():
 
                     # completed event
                     unit.target.is_active = False # set emergency to non-active
+                    # index = emergency_stack.index(unit.target)
+                    # emergency_stack.pop(index) # pop from list
+                    if unit.target in emergency_stack:
+                        emergency_stack.remove(unit.target)
+                    
+
                     
                     remaining_time = curr_time - unit.target.expire_time    # calculate points
                     # print(f"Reminaing time={remaining_time}")
@@ -174,14 +180,19 @@ def testing():
         
         # for every emergency (on emergency stack)
         #   if curr_time > emergency.expire_time:
-        #       emergency expired. Minus two points    
+        #       emergency expired. Minus two points 
+        things_to_pop = []   
         for emerg in emergency_stack:
             if emerg.expire_time < curr_time:
                 # emergency has expired. RIP.
                 emerg.is_active = False
                 points -= 2
-                emergency_stack.pop(0)  # pop first in stack
+                # index = emergency_stack.index(emerg)
+                # emergency_stack.pop(0)  # pop first in stack
+                things_to_pop.append(emerg)
 
+        for emr in things_to_pop:
+            emergency_stack.remove(emr)
 
         # ------------------------------------------------------------
         # NEW EMERGENCY
