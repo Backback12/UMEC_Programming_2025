@@ -1,9 +1,120 @@
 import tkinter as tk
 import random
+import csv 
+import time
 
 GRID_W, GRID_H = 200, 200
 BG_COLOR = "#ffffff"
 ZOOM = 3 
+
+def parse_time_to_seconds(s):
+    s = s.strip()
+    if not s:
+        return 0.0
+    try:
+        return float(s)
+    except ValueError:
+        pass
+
+    parts = s.split(":")
+    parts = [p.strip() for p in parts]
+    if len(parts) == 2:
+        m, sec = parts
+        return int(m) * 60 + float(sec)
+    elif len(parts) == 3:
+        h, m, sec = parts
+        return int(h) * 3600 + int(m) * 60 + float(sec)
+    return 0.0
+
+def load_emergencies_from_csv(path):
+    emergencies = []
+    try:
+        with open(path, newline='', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if len(row) < 4:
+                    continue
+
+                try:
+                    t = float(row[0])      
+                except ValueError:
+                    continue
+
+                e_type = row[3].strip().lower()  # fire / police / medical
+
+                desc = f"{e_type.capitalize()} emergency"
+
+                emergencies.append({
+                    "time": t,
+                    "type": e_type,
+                })
+    except FileNotFoundError:
+        print(f"[WARN] CSV file '{path}' not found. No emergencies loaded.")
+    except Exception as e:
+        print(f"[WARN] Could not read '{path}': {e}")
+
+    emergencies.sort(key=lambda e: e["time"])
+    return emergencies
+
+class EmergencyPlayer:
+
+    def __init__(self, root, emergencies, log_func, time_scale=10.0):
+        self.root = root
+        self.emergencies = emergencies
+        self.log = log_func
+        self.time_scale = float(time_scale)
+
+        self.running = False
+        self.start_real_time = None
+        self.next_idx = 0
+
+    def start(self):
+        if not self.emergencies:
+            self.log("No emergencies loaded. Nothing to simulate.\n")
+            return
+
+        # reset and start
+        self.running = True
+        self.start_real_time = time.time()
+        self.next_idx = 0
+        self.log("=== Simulation started ===\n")
+        self.root.after(100, self._tick)
+
+    def _tick(self):
+        if not self.running:
+            return
+
+        # elapsed simulation time
+        elapsed_real = time.time() - self.start_real_time
+        sim_time = elapsed_real * self.time_scale
+
+        # reveal all emergencies that are due
+        while (self.next_idx < len(self.emergencies)
+               and self.emergencies[self.next_idx]["time"] <= sim_time):
+            e = self.emergencies[self.next_idx]
+            t_str = format_sim_time(e["time"])
+            line = f"[{t_str}] {e['type']}: {e['description']}\n"
+            self.log(line)
+            self.next_idx += 1
+
+        # check if we are done
+        if self.next_idx >= len(self.emergencies):
+            self.log("=== Simulation finished ===\n")
+            self.running = False
+            return
+
+        # keep advancing
+        self.root.after(200, self._tick)
+
+def format_sim_time(seconds):
+    seconds = int(round(seconds))
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    if h > 0:
+        return f"{h:02d}:{m:02d}:{s:02d}"
+    else:
+        return f"{m:02d}:{s:02d}"
 
 class PixelGrid:
     def __init__(self, master, width=GRID_W, height=GRID_H, zoom=ZOOM, bg=BG_COLOR):
@@ -128,9 +239,26 @@ def build_ui(root):
 
     grid_frame = tk.Frame(frame)
     grid_frame.pack(side='right', padx=8, pady=8)
-    left_frame = tk.Frame(frame)
-    left_frame.pack(side='left', fill='y', padx=8, pady=8)
- 
+    
+    
+    log_frame = tk.Frame(frame)
+    log_frame.pack(side='left', fill='both',expand = True, padx=8, pady=8)
+    tk.Label(log_frame, text="Event Log", font=("TkDefaultFont", 11, "bold")).pack(anchor='w')
+
+    log_text = tk.Text(log_frame, width=45, height=30, state='disabled')
+    log_scroll = tk.Scrollbar(log_frame, command=log_text.yview)
+    log_text.configure(yscrollcommand=log_scroll.set)
+
+    log_scroll.pack(side='right', fill='y')
+    log_text.pack(side='left', fill='both', expand=True)
+
+    def append_log(msg):
+        log_text.configure(state='normal')
+        log_text.insert(tk.END, msg)
+        log_text.see(tk.END)   # auto-scroll
+        log_text.configure(state='disabled')
+
+
     pg = PixelGrid(grid_frame)
 
     stations = [
@@ -145,28 +273,17 @@ def build_ui(root):
     for x, y, color in stations:
         pg.add_pixel(x, y, color)
 
-    ## ADD PIXEL GOES HERE
-    tk.Label(left_frame, text="Emergencies").pack(padx=75,pady=10)
-    listbox = tk.Listbox(left_frame, width=50, height=10)
-    listbox.pack()
+    emergencies = load_emergencies_from_csv("../emergency_events.csv")
+    append_log(f"Loaded {len(emergencies)} emergencies from 'emergencies.csv'\n")
 
-    tk.Label(left_frame, text="Points").pack(padx=10,pady=10)
+    # time_scale: change this if you want the simulation to go faster/slower
+    player = EmergencyPlayer(root, emergencies, append_log, time_scale=1000.0)
 
-    tk.Label()
+    # Start button
+    start_btn = tk.Button(log_frame, text="Start simulation", command=player.start)
+    start_btn.pack(anchor='w', pady=(6, 0))
 
-    def refresh_list():
-        listbox.delete(0, tk.END)
-        for pid, p in sorted(pg.pixels.items()):
-            listbox.insert(tk.END, f"{pid}: {int(round(p['x']))},{int(round(p['y']))}")
-    refresh_list()
-
-    # update list periodically (to show moving coords)
-    def periodic_refresh():
-        refresh_list()
-        root.after(200, periodic_refresh)
-    periodic_refresh()
-
-    return pg
+    return pg, player
 
 if __name__ == "__main__":
     root = tk.Tk()
