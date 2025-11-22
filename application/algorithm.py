@@ -15,6 +15,7 @@ DEFAULT_SPEED = 1   # 1 unit/s
 # Unit  = namedtuple('Unit', ['station_id','stype','unit_id','home_x','home_y','speed'])
 
 
+
 # Assumptions
 # Not going back to station
 class Unit:
@@ -38,6 +39,12 @@ class Unit:
         # self.target_y = 0   
         self.target = None  # TARGET EMERGENCY
 
+
+        # name - F1-0, F1-1
+        # used in database
+        self.name = str(self.station_id) + "-" + str(self.unit_id)
+        
+
 class Emergency:
     def __init__(self, x, y, etype, prio, expire_time):
         self.x = x
@@ -49,11 +56,11 @@ class Emergency:
         
         
         if self.etype == 'fire':
-            self.applicable_units = ['fire']  ########################################################################### UPDATE
+            self.applicable_units = ['fire']
         elif self.etype == 'police':
-            self.applicable_units = ['police']  ########################################################################### UPDATE
+            self.applicable_units = ['police', 'medical']
         elif self.etype == 'medical':
-            self.applicable_units = ['medical']  ########################################################################### UPDATE
+            self.applicable_units = ['medical', 'fire']
         else:
             self.applicable_units = []
             print("YOOOOO WHAT THE HELL")
@@ -82,6 +89,15 @@ def testing():
 
 
 
+    # Add units positions to data
+    for unit in units:
+        
+        data[unit.name + "-x"] = None    # create unit x position col
+        data[unit.name + "-y"] = None    # create unit y position col
+
+
+
+
 
     last_time = 0
 
@@ -99,7 +115,7 @@ def testing():
         emergency = Emergency(x=row['x'], 
                             y=row['y'], 
                             etype=row['etype'], 
-                            prio=row['priority_s']
+                            prio=row['priority_s'],
                             expire_time=curr_time + row['priority_s'])
 
         emergency_stack.append(emergency)
@@ -130,7 +146,7 @@ def testing():
         # SET BEST UNIT TO GO THERE (if it exists, otherwise event is cooked rip those people. Let it expire)
         if best_unit:
             best_unit.is_busy = True
-            best_unit.done_busy_time = curr_time + get_time_to_emergency()
+            best_unit.done_busy_time = curr_time + get_time_to_emergency(best_unit, emergency)
             best_unit.target = emergency
 
         
@@ -164,10 +180,20 @@ def testing():
 
                     # completed event
                     unit.target.is_active = False # set emergency to non-active
-                    points += 2 # update points
+                    
+                    remaining_time = unit.target.expire_time - curr_time    # calculate points
+                    points += 1 * int(remaining_time / 60)      # 1 point for every minute remaining
                 else:
                     # unit is still moving towards target. Calculate new current distance
+                    pass
+            
 
+            # save unit positions to output data
+             
+            data[unit.name + "-x"] = unit.x
+            data[unit.name + "-y"] = unit.y
+            
+            
 
 
         # ------------------------------------------------------------
@@ -177,14 +203,20 @@ def testing():
         # for every emergency (on emergency stack)
         #   if curr_time > emergency.expire_time:
         #       emergency expired. Minus two points    
+        for emerg in emergency_stack:
+            if emerg.expire_time < curr_time:
+                # emergency has expired. RIP.
+                emerg.is_active = False
+                points -= 2
+                emergency_stack.pop(0)  # pop first in stack
 
         last_time = curr_time
 
-testing()
+
 
 
 def get_time_to_emergency(unit, emergency):
-    return  math.sqrt( (emergency.y - unit.y)^2 + (emergency.x - unit.x)^2) / unit.speed   # v = d / t -> t = d / v
+    return  math.sqrt( math.pow(emergency.y - unit.y, 2) + math.pow(emergency.x - unit.x, 2)) / unit.speed   # v = d / t -> t = d / v
 
 
 def build_initial_stations():
@@ -212,3 +244,6 @@ def create_units_from_stations(stations, default_speed=1.0):
 def main():
     stations = build_initial_stations()
     units = create_units_from_stations(stations, default_speed=1.0)  # 1 unit/sec
+
+
+testing()
