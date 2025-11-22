@@ -127,7 +127,7 @@ def testing():
                     best_unit = unit
 
 
-        # SET BEST UNIT TO GO THERE (if it exists, otherwise event is cooked rip those people. Let it expire)
+        # SET BEST UNIT TO GO THERE (if it exists, otherwise event is cooked rip those people. Let it expire
         if best_unit:
             best_unit.is_busy = True
             best_unit.done_busy_time = curr_time + get_time_to_emergency()
@@ -167,8 +167,11 @@ def testing():
                     points += 2 # update points
                 else:
                     # unit is still moving towards target. Calculate new current distance
-
-
+                    
+                    ratio = (curr_time-last_time) / (get_time_to_emergency(unit, unit.target))
+                    unit.x = unit.x * ratio 
+                    unit.y = unit.y * ratio
+                    
 
         # ------------------------------------------------------------
         # update all emergencies on stack
