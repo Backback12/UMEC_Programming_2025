@@ -128,8 +128,8 @@ def build_ui(root):
 
     grid_frame = tk.Frame(frame)
     grid_frame.pack(side='right', padx=8, pady=8)
-    controls = tk.Frame(frame)
-    controls.pack(side='left', fill='y', padx=8, pady=8)
+    left_frame = tk.Frame(frame)
+    left_frame.pack(side='left', fill='y', padx=8, pady=8)
  
     pg = PixelGrid(grid_frame)
 
@@ -145,11 +145,14 @@ def build_ui(root):
     for x, y, color in stations:
         pg.add_pixel(x, y, color)
 
-
     ## ADD PIXEL GOES HERE
-    tk.Label(controls, text="Emergencies").pack(padx=75,pady=10)
-    listbox = tk.Listbox(controls, width=50, height=10)
+    tk.Label(left_frame, text="Emergencies").pack(padx=75,pady=10)
+    listbox = tk.Listbox(left_frame, width=50, height=10)
     listbox.pack()
+
+    tk.Label(left_frame, text="Points").pack(padx=10,pady=10)
+
+    tk.Label()
 
     def refresh_list():
         listbox.delete(0, tk.END)
@@ -170,8 +173,6 @@ if __name__ == "__main__":
     build_ui(root)
     root.geometry("900x640")
     root.mainloop()
-
-
 
 #MAYBE USEFUL LATER
 ## ADD PIXEL
