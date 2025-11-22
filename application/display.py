@@ -1,11 +1,11 @@
 import tkinter as tk
 import random
-import csv 
+import csv
 import time
 
-GRID_W, GRID_H = 200, 200
-BG_COLOR = "#ffffff"
-ZOOM = 3 
+GRID_W, GRID_H = 200,200
+BG_COLOR = "#000000"
+ZOOM = 3
 
 def parse_time_to_seconds(s):
     s = s.strip()
@@ -39,7 +39,8 @@ def load_emergencies_from_csv(path):
                     t = float(row[0])      
                 except ValueError:
                     continue
-
+                x = float(row[1])
+                y = float(row[2])
                 e_type = row[3].strip().lower()  # fire / police / medical
 
                 desc = f"{e_type.capitalize()} emergency"
@@ -47,7 +48,10 @@ def load_emergencies_from_csv(path):
                 emergencies.append({
                     "time": t,
                     "type": e_type,
+                    "x": x,
+                    "y": y,
                 })
+
     except FileNotFoundError:
         print(f"[WARN] CSV file '{path}' not found. No emergencies loaded.")
     except Exception as e:
@@ -56,12 +60,23 @@ def load_emergencies_from_csv(path):
     emergencies.sort(key=lambda e: e["time"])
     return emergencies
 
+def format_sim_time(seconds):
+    seconds = int(round(seconds))
+    h = seconds // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+    if h > 0:
+        return f"{h:02d}:{m:02d}:{s:02d}"
+    else:
+        return f"{m:02d}:{s:02d}"
+
 class EmergencyPlayer:
 
-    def __init__(self, root, emergencies, log_func, time_scale=10.0):
+    def __init__(self, root, emergencies, log_func,pixel_grid, time_scale=10.0):
         self.root = root
         self.emergencies = emergencies
         self.log = log_func
+        self.pg = pixel_grid
         self.time_scale = float(time_scale)
 
         self.running = False
@@ -88,16 +103,27 @@ class EmergencyPlayer:
         elapsed_real = time.time() - self.start_real_time
         sim_time = elapsed_real * self.time_scale
 
-        # reveal all emergencies that are due
         while (self.next_idx < len(self.emergencies)
                and self.emergencies[self.next_idx]["time"] <= sim_time):
             e = self.emergencies[self.next_idx]
             t_str = format_sim_time(e["time"])
-            line = f"[{t_str}] {e['type']}: {e['description']}\n"
+            line = f"[{t_str}] {e['type']}\n"
             self.log(line)
+
+            x = e['x']
+            y = e['y']
+            if e['type'] == 'fire':
+                color = "#FF8800"
+            elif e['type'] == 'police':
+                color = "#00CCFF"
+            elif e['type'] == 'medical':
+                color = "#FF00E1"
+            else:
+                color = "#808080"
+            pid = self.pg.add_pixel(x, y, color)
+
             self.next_idx += 1
 
-        # check if we are done
         if self.next_idx >= len(self.emergencies):
             self.log("=== Simulation finished ===\n")
             self.running = False
@@ -105,16 +131,6 @@ class EmergencyPlayer:
 
         # keep advancing
         self.root.after(200, self._tick)
-
-def format_sim_time(seconds):
-    seconds = int(round(seconds))
-    h = seconds // 3600
-    m = (seconds % 3600) // 60
-    s = seconds % 60
-    if h > 0:
-        return f"{h:02d}:{m:02d}:{s:02d}"
-    else:
-        return f"{m:02d}:{s:02d}"
 
 class PixelGrid:
     def __init__(self, master, width=GRID_W, height=GRID_H, zoom=ZOOM, bg=BG_COLOR):
@@ -179,72 +195,38 @@ class PixelGrid:
         self.animations.clear()
         self.redraw_all()
 
-    # animation control - moves pixel smoothly over steps frames
-    def move_pixel(self, pid, tx, ty, steps=60, delay_ms=None):
-        if pid not in self.pixels:
-            return
-        if delay_ms is None:
-            delay_ms = self.anim_delay
-        p = self.pixels[pid]
-        sx, sy = p['x'], p['y']
-        if steps <= 0:
-            self.set_pixel_pos(pid, tx, ty)
-            return
-        anim = {
-            'sx': sx, 'sy': sy, 'tx': float(tx), 'ty': float(ty),
-            'steps': int(steps), 'i': 0
-        }
-        self.animations[pid] = anim
-        self.anim_delay = delay_ms
-        if not self.anim_running:
-            self.anim_running = True
-            self.master.after(delay_ms, self._animation_step)
-
-    def _animation_step(self):
-        if not self.animations:
-            self.anim_running = False
-            return
-        to_remove = []
-        for pid, anim in list(self.animations.items()):
-            i = anim['i']
-            steps = anim['steps']
-            if i >= steps:
-                # finalize
-                self.pixels[pid]['x'] = anim['tx']
-                self.pixels[pid]['y'] = anim['ty']
-                to_remove.append(pid)
-                continue
-            t = (i + 1) / steps
-            nx = anim['sx'] + (anim['tx'] - anim['sx']) * t
-            ny = anim['sy'] + (anim['ty'] - anim['sy']) * t
-            self.pixels[pid]['x'] = nx
-            self.pixels[pid]['y'] = ny
-            anim['i'] += 1
-        for pid in to_remove:
-            self.animations.pop(pid, None)
-        self.redraw_all()
-        if self.animations:
-            self.master.after(self.anim_delay, self._animation_step)
-        else:
-            self.anim_running = False
-
-#update canvas
-#TODO: update emergencies (managed or unmanaged, positions), update unit positions, per time step
-
-# MAIN UI
+# UI
 def build_ui(root):
     root.title("PleaseCompile - Dispatcher Simulation")
     frame = tk.Frame(root)
     frame.pack(fill='both', expand=True)
 
-    grid_frame = tk.Frame(frame)
-    grid_frame.pack(side='right', padx=8, pady=8)
-    
-    
-    log_frame = tk.Frame(frame)
-    log_frame.pack(side='left', fill='both',expand = True, padx=8, pady=8)
-    tk.Label(log_frame, text="Event Log", font=("TkDefaultFont", 11, "bold")).pack(anchor='w')
+    title_label = tk.Label(frame, text="Winnipeg Dispatcher Simulation", font=("TkDefaultFont", 16, "bold"))
+    title_label.pack(pady=8)
 
+    # Legend frame for stations
+    legend_frame = tk.Frame(frame)
+    legend_frame.pack()
+    tk.Label(legend_frame, text="Legend: ", font=("TkDefaultFont", 11, "bold")).pack(side='left')
+    tk.Label(legend_frame, text="■ Fire Station", fg="#FF0000").pack(side='left', padx=8)
+    tk.Label(legend_frame, text="■ Police Station", fg="#002FFF").pack(side='left', padx=8)
+    tk.Label(legend_frame, text="■ Medical Station", fg="#FFE607").pack(side='left', padx=8)
+
+    #legend for emergencies
+    legend_frame2 = tk.Frame(frame)
+    legend_frame2.pack()
+    tk.Label(legend_frame2, text="Emergencies: ", font=("TkDefaultFont", 11, "bold")).pack(side='left')
+    tk.Label(legend_frame2, text="■ Fire Emergency", fg="#FF8800").pack(side='left', padx=8)
+    tk.Label(legend_frame2, text="■ Police Emergency", fg="#00CCFF").pack(side='left', padx=8)
+    tk.Label(legend_frame2, text="■ Medical Emergency", fg="#FF00E1").pack(side='left', padx=8)
+
+    # Event log
+    log_frame = tk.Frame(frame)
+    log_frame.pack(side='left', expand=True)
+
+    tk.Label(log_frame, text="Emergencies Happening", font=("TkDefaultFont", 11, "bold")).pack(anchor='w')
+
+    # Text widget + scrollbar as the log
     log_text = tk.Text(log_frame, width=45, height=30, state='disabled')
     log_scroll = tk.Scrollbar(log_frame, command=log_text.yview)
     log_text.configure(yscrollcommand=log_scroll.set)
@@ -255,70 +237,42 @@ def build_ui(root):
     def append_log(msg):
         log_text.configure(state='normal')
         log_text.insert(tk.END, msg)
-        log_text.see(tk.END)   # auto-scroll
+        log_text.see(tk.END)  
         log_text.configure(state='disabled')
 
+    # Pixel grid
+    grid_frame = tk.Frame(frame)
+    grid_frame.pack(side='right', padx=8, pady=8)
 
     pg = PixelGrid(grid_frame)
+    tk.Label(grid_frame, text="Winnipeg, MB", font=("TkDefaultFont", 11, "bold")).pack()
 
     stations = [
-        (20, 20, "#FF0000"),  # Fire Station 1
-        (180, 20, "#700000"),  # Fire Station 2
+        (20, 20, "#FF0000"),   # Fire Station 1
+        (180, 20, "#FF0000"),  # Fire Station 2
         (50, 100, "#002FFF"),  # Police Station 1
-        (150, 120, "#000000"),  # Police Station 2
-        (100, 30, "#000000"),  # Medical Station 1
-        (100, 170, "#000000"),  # Medical Station 2
+        (150, 120, "#002FFF"), # Police Station 2
+        (100, 30, "#FFE607"),  # Medical Station 1
+        (100, 170, "#FFE607"), # Medical Station 2
     ]
 
     for x, y, color in stations:
         pg.add_pixel(x, y, color)
 
-    emergencies = load_emergencies_from_csv("../emergency_events.csv")
-    append_log(f"Loaded {len(emergencies)} emergencies from 'emergencies.csv'\n")
-
-    # time_scale: change this if you want the simulation to go faster/slower
-    player = EmergencyPlayer(root, emergencies, append_log, time_scale=1000.0)
+    emergencies = load_emergencies_from_csv("emergency_events.csv")
+    append_log(f"Welcome to the Dispatcher Simulation!\n")
+    player = EmergencyPlayer(root, emergencies, append_log,pg, time_scale=1000.0)
 
     # Start button
-    start_btn = tk.Button(log_frame, text="Start simulation", command=player.start)
-    start_btn.pack(anchor='w', pady=(6, 0))
+    start_btn = tk.Button(text="Start simulation", command=player.start)
+    start_btn.pack(side= "left", padx= 300, pady=100)
+
 
     return pg, player
+
 
 if __name__ == "__main__":
     root = tk.Tk()
     build_ui(root)
     root.geometry("900x640")
     root.mainloop()
-
-#MAYBE USEFUL LATER
-## ADD PIXEL
-# tk.Label(controls, text="Add pixel").pack()
-#     add_x = tk.Entry(controls, width=6); add_x.insert(0, "10")
-#     add_y = tk.Entry(controls, width=6); add_y.insert(0, "10")
-#     add_color = tk.Entry(controls, width=8); add_color.insert(0, "#ff0000")
-#     add_x.pack(pady=2); add_y.pack(pady=2); add_color.pack(pady=2)
-
-#     def on_add():
-#         try:
-#             x = int(add_x.get()); y = int(add_y.get()); c = add_color.get()
-#             pid = pg.add_pixel(x, y, c)
-#             refresh_list()
-#         except Exception:
-#             pass
-#     tk.Button(controls, text="Add pixel", command=on_add).pack(pady=4)
-
-# def on_remove():
-#         sel = listbox.curselection()
-#         if not sel:
-#             return
-#         idx = sel[0]
-#         pid = int(listbox.get(idx).split(":")[0])
-#         pg.remove_pixel(pid)
-#         refresh_list()
-#     tk.Button(controls, text="Remove selected", command=on_remove).pack(pady=4)
-
-# def on_clear():
-#     pg.clear_all()
-#     refresh_list()
-# tk.Button(controls, text="Clear all", command=on_clear).pack(pady=6)
