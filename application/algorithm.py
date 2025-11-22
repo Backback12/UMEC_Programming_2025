@@ -100,6 +100,7 @@ def testing():
         data[unit.name + "-x"] = None    # create unit x position col
         data[unit.name + "-y"] = None    # create unit y position col
     data['points'] = None
+    data['done'] = None
 
 
 
@@ -113,7 +114,7 @@ def testing():
         if VERBOSE: print(f"\nNEW TIME TICK = {curr_time}")
         
 
-
+        
         # ------------------------------------------------------------
         # update all other units
         # ------------------------------------------------------------
@@ -278,3 +279,6 @@ def main():
 
 
 data = testing()
+
+# output
+data.to_csv('output.csv')
